@@ -181,6 +181,37 @@ router.post('/verify-2fa', (req, res) => {
 });
 
 // -------------------------------------------------------
+// POST /auth/register-simple — Inscription SANS 2FA (démo)
+// -------------------------------------------------------
+router.post('/register-simple', async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Champs manquants.' });
+  }
+
+  const users = lireUtilisateurs();
+
+  if (users.find(u => u.username === username)) {
+    return res.status(409).json({ error: 'Ce nom d\'utilisateur est déjà utilisé.' });
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  // Utilisateur sans clé 2FA
+  users.push({
+    username,
+    password: hashedPassword,
+    secret: null,
+    tentativesEchouees: 0,
+    bloque: false
+  });
+
+  sauvegarderUtilisateurs(users);
+  return res.json({ message: 'Compte créé avec succès.' });
+});
+
+// -------------------------------------------------------
 // POST /auth/login-simple — Connexion SANS 2FA (démo)
 // -------------------------------------------------------
 router.post('/login-simple', async (req, res) => {

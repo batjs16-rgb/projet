@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Connexion — Sans 2FA</title>
+  <title>Inscription — Sans 2FA</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -25,75 +25,36 @@
       max-width: 400px;
     }
 
-    h1 {
-      text-align: center;
-      margin-bottom: 0.5rem;
-      color: #1a1a2e;
-      font-size: 1.6rem;
-    }
+    h1 { text-align: center; margin-bottom: 0.5rem; color: #1a1a2e; font-size: 1.6rem; }
+    .subtitle { text-align: center; color: #666; margin-bottom: 2rem; font-size: 0.9rem; }
 
-    .subtitle {
-      text-align: center;
-      color: #666;
-      margin-bottom: 2rem;
-      font-size: 0.9rem;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 0.4rem;
-      font-weight: 600;
-      color: #333;
-      font-size: 0.9rem;
-    }
+    label { display: block; margin-bottom: 0.4rem; font-weight: 600; color: #333; font-size: 0.9rem; }
 
     input {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      border: 1.5px solid #ddd;
-      border-radius: 8px;
-      font-size: 1rem;
-      margin-bottom: 1.2rem;
-      transition: border-color 0.2s;
+      width: 100%; padding: 0.75rem 1rem; border: 1.5px solid #ddd;
+      border-radius: 8px; font-size: 1rem; margin-bottom: 1.2rem; transition: border-color 0.2s;
     }
 
     input:focus { outline: none; border-color: #4f46e5; }
 
     button {
-      width: 100%;
-      padding: 0.85rem;
-      background: #4f46e5;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s;
+      width: 100%; padding: 0.85rem; background: #4f46e5; color: white;
+      border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: background 0.2s;
     }
 
     button:hover { background: #4338ca; }
     button:disabled { background: #a5b4fc; cursor: not-allowed; }
 
     .message {
-      margin-top: 1rem;
-      padding: 0.75rem 1rem;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      text-align: center;
-      display: none;
+      margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 8px;
+      font-size: 0.9rem; text-align: center; display: none;
     }
 
     .message.error   { background: #fee2e2; color: #dc2626; }
     .message.success { background: #dcfce7; color: #16a34a; }
 
-    .link {
-      text-align: center;
-      margin-top: 1.5rem;
-      font-size: 0.9rem;
-      color: #666;
-    }
-
+    .link { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: #666; }
     .link a { color: #4f46e5; text-decoration: none; font-weight: 600; }
     .link a:hover { text-decoration: underline; }
   </style>
@@ -101,21 +62,21 @@
 <body>
 
 <div class="card">
-  <h1>🔓 Connexion</h1>
+  <h1>📝 Inscription</h1>
   <p class="subtitle">Sans authentification à deux facteurs</p>
 
   <label for="username">Nom d'utilisateur</label>
-  <input type="text" id="username" placeholder="Votre identifiant" autocomplete="username" />
+  <input type="text" id="username" placeholder="Choisissez un identifiant" autocomplete="username" />
 
   <label for="password">Mot de passe</label>
-  <input type="password" id="password" placeholder="Votre mot de passe" autocomplete="current-password" />
+  <input type="password" id="password" placeholder="Minimum 6 caractères" autocomplete="new-password" />
 
-  <button id="btn-login" onclick="seConnecter()">Se connecter</button>
+  <button id="btn-register" onclick="inscrire()">Créer mon compte</button>
 
   <div class="message" id="message"></div>
 
   <div class="link">
-    Pas encore de compte ? <a href="/register-simple.html">S'inscrire</a>
+    Déjà un compte ? <a href="/login-simple.html">Se connecter</a>
   </div>
 </div>
 
@@ -127,21 +88,19 @@
     el.style.display = 'block';
   }
 
-  // Connexion sans 2FA : seul le mot de passe est vérifié
-  async function seConnecter() {
+  async function inscrire() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
-    const btn = document.getElementById('btn-login');
+    const btn = document.getElementById('btn-register');
 
-    if (!username || !password) {
-      return afficherMessage('Veuillez remplir tous les champs.', 'error');
-    }
+    if (!username || !password) return afficherMessage('Veuillez remplir tous les champs.', 'error');
+    if (password.length < 6) return afficherMessage('Le mot de passe doit contenir au moins 6 caractères.', 'error');
 
     btn.disabled = true;
-    btn.textContent = 'Connexion...';
+    btn.textContent = 'Création en cours...';
 
     try {
-      const res = await fetch('/auth/login-simple', {
+      const res = await fetch('/auth/register-simple', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -152,20 +111,18 @@
       if (!res.ok) {
         afficherMessage(data.error, 'error');
       } else {
-        afficherMessage('Connexion réussie ! Redirection...', 'success');
-        setTimeout(() => window.location.href = '/dashboard', 1000);
+        afficherMessage('Compte créé ! Redirection...', 'success');
+        setTimeout(() => window.location.href = '/login-simple.html', 1200);
       }
     } catch (e) {
       afficherMessage('Erreur réseau. Réessayez.', 'error');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Se connecter';
+      btn.textContent = 'Créer mon compte';
     }
   }
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') seConnecter();
-  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Enter') inscrire(); });
 </script>
 
 </body>
