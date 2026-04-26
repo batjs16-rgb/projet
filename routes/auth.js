@@ -181,6 +181,34 @@ router.post('/verify-2fa', (req, res) => {
 });
 
 // -------------------------------------------------------
+// POST /auth/login-simple — Connexion SANS 2FA (démo)
+// -------------------------------------------------------
+router.post('/login-simple', async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Champs manquants.' });
+  }
+
+  const users = lireUtilisateurs();
+  const user = users.find(u => u.username === username);
+
+  if (!user) {
+    return res.status(401).json({ error: 'Identifiants incorrects.' });
+  }
+
+  // Vérifier uniquement le mot de passe, pas de 2FA
+  const motDePasseValide = await bcrypt.compare(password, user.password);
+  if (!motDePasseValide) {
+    return res.status(401).json({ error: 'Mot de passe incorrect.' });
+  }
+
+  // Connexion directe sans étape 2FA
+  req.session.user = { username: user.username };
+  return res.json({ message: 'Connecté sans 2FA.' });
+});
+
+// -------------------------------------------------------
 // POST /auth/logout — Déconnexion et destruction de la session
 // -------------------------------------------------------
 router.post('/logout', (req, res) => {
