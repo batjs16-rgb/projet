@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tableau de bord — 2FA Auth</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+    nav {
+      background: #1a1a2e;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    nav .logo { color: white; font-size: 1.2rem; font-weight: 700; }
+    nav .user-info { color: #a5b4fc; font-size: 0.9rem; }
+
+    nav button {
+      background: #ef4444; color: white; border: none;
+      padding: 0.5rem 1.2rem; border-radius: 6px; cursor: pointer;
+      font-size: 0.9rem; font-weight: 600; transition: background 0.2s;
+    }
+
+    nav button:hover { background: #dc2626; }
+
+    .container { max-width: 700px; margin: 3rem auto; padding: 0 1rem; }
+
+    .welcome-card {
+      background: white; border-radius: 12px; padding: 2.5rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center;
+    }
+
+    .welcome-card .icon { font-size: 4rem; margin-bottom: 1rem; }
+    .welcome-card h1 { font-size: 1.8rem; color: #1a1a2e; margin-bottom: 0.5rem; }
+    .welcome-card p { color: #666; font-size: 1rem; margin-bottom: 2rem; }
+
+    .badge {
+      display: inline-block; background: #dcfce7; color: #16a34a;
+      padding: 0.4rem 1rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+    }
+
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2rem; }
+
+    .info-box {
+      background: #f8fafc; border: 1.5px solid #e2e8f0;
+      border-radius: 10px; padding: 1.2rem; text-align: left;
+    }
+
+    .info-box .label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+    .info-box .value { font-size: 1rem; font-weight: 600; color: #1a1a2e; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"> 2FA Auth</div>
+  <div class="user-info">Connecté en tant que : <strong id="nav-username">...</strong></div>
+  <button onclick="seDeconnecter()">Se déconnecter</button>
+</nav>
+
+<div class="container">
+  <div class="welcome-card">
+    <div class="icon">🎉</div>
+    <h1>Bienvenue, <span id="username">...</span> !</h1>
+    <p>Vous êtes connecté avec succès grâce à l'authentification à deux facteurs.</p>
+    <span class="badge"> Compte vérifié — 2FA activée</span>
+
+    <div class="info-grid">
+      <div class="info-box">
+        <div class="label">Statut</div>
+        <div class="value">🟢 Authentifié</div>
+      </div>
+      <div class="info-box">
+        <div class="label">Sécurité</div>
+        <div class="value"> 2FA activée</div>
+      </div>
+      <div class="info-box">
+        <div class="label">Méthode</div>
+        <div class="value">Google Authenticator</div>
+      </div>
+      <div class="info-box">
+        <div class="label">Session</div>
+        <div class="value" id="session-time">Active</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Récupère les infos de l'utilisateur connecté
+  async function chargerUtilisateur() {
+    try {
+      const res = await fetch('/auth/me');
+      if (!res.ok) { window.location.href = '/'; return; }
+
+      const data = await res.json();
+      document.getElementById('username').textContent = data.username;
+      document.getElementById('nav-username').textContent = data.username;
+
+      // Afficher l'heure de connexion
+      const now = new Date();
+      document.getElementById('session-time').textContent =
+        `Depuis ${now.getHours()}h${String(now.getMinutes()).padStart(2, '0')}`;
+    } catch (e) {
+      window.location.href = '/';
+    }
+  }
+
+  // Déconnexion
+  async function seDeconnecter() {
+    await fetch('/auth/logout', { method: 'POST' });
+    window.location.href = '/';
+  }
+
+  chargerUtilisateur();
+</script>
+
+</body>
+</html>

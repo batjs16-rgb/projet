@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inscription — 2FA Auth</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: white;
+      padding: 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 420px;
+    }
+
+    h1 { text-align: center; margin-bottom: 0.5rem; color: #1a1a2e; font-size: 1.6rem; }
+    .subtitle { text-align: center; color: #666; margin-bottom: 2rem; font-size: 0.9rem; }
+
+    label { display: block; margin-bottom: 0.4rem; font-weight: 600; color: #333; font-size: 0.9rem; }
+
+    input {
+      width: 100%; padding: 0.75rem 1rem; border: 1.5px solid #ddd;
+      border-radius: 8px; font-size: 1rem; margin-bottom: 1.2rem; transition: border-color 0.2s;
+    }
+
+    input:focus { outline: none; border-color: #4f46e5; }
+
+    button {
+      width: 100%; padding: 0.85rem; background: #4f46e5; color: white;
+      border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: background 0.2s;
+    }
+
+    button:hover { background: #4338ca; }
+    button:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+    .message {
+      margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 8px;
+      font-size: 0.9rem; text-align: center; display: none;
+    }
+
+    .message.error { background: #fee2e2; color: #dc2626; }
+    .message.success { background: #dcfce7; color: #16a34a; }
+
+    #qr-section { display: none; text-align: center; margin-top: 1.5rem; }
+    #qr-section h2 { font-size: 1.1rem; color: #1a1a2e; margin-bottom: 0.5rem; }
+    #qr-section p { font-size: 0.85rem; color: #555; margin-bottom: 1rem; }
+
+    #qr-image { border: 3px solid #4f46e5; border-radius: 8px; padding: 8px; max-width: 200px; }
+
+    #btn-go-login { margin-top: 1.2rem; background: #16a34a; }
+    #btn-go-login:hover { background: #15803d; }
+
+    .link { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: #666; }
+    .link a { color: #4f46e5; text-decoration: none; font-weight: 600; }
+    .link a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1> Inscription</h1>
+  <p class="subtitle">Créez votre compte sécurisé</p>
+
+  <div id="form-section">
+    <label for="username">Nom d'utilisateur</label>
+    <input type="text" id="username" placeholder="Choisissez un identifiant" autocomplete="username" />
+
+    <label for="password">Mot de passe</label>
+    <input type="password" id="password" placeholder="Minimum 6 caractères" autocomplete="new-password" />
+
+    <button id="btn-register" onclick="inscrire()">Créer mon compte</button>
+  </div>
+
+  <div class="message" id="message"></div>
+
+  <!-- QR code affiché après inscription réussie -->
+  <div id="qr-section">
+    <h2>📱 Scannez ce QR code</h2>
+    <p>Ouvrez <strong>Google Authenticator</strong> et scannez ce code pour activer la 2FA sur votre compte.</p>
+    <img id="qr-image" src="" alt="QR Code 2FA" />
+    <br/>
+    <button id="btn-go-login" onclick="window.location.href='/'">Aller à la connexion →</button>
+  </div>
+
+  <div class="link" id="login-link">
+    Déjà un compte ? <a href="/">Se connecter</a>
+  </div>
+</div>
+
+<script>
+  function afficherMessage(texte, type) {
+    const el = document.getElementById('message');
+    el.textContent = texte;
+    el.className = `message ${type}`;
+    el.style.display = 'block';
+  }
+
+  // Envoi du formulaire d'inscription
+  async function inscrire() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const btn = document.getElementById('btn-register');
+
+    if (!username || !password) return afficherMessage('Veuillez remplir tous les champs.', 'error');
+    if (password.length < 6) return afficherMessage('Le mot de passe doit contenir au moins 6 caractères.', 'error');
+
+    btn.disabled = true;
+    btn.textContent = 'Création en cours...';
+
+    try {
+      const res = await fetch('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        afficherMessage(data.error, 'error');
+      } else {
+        // Cacher le formulaire et afficher le QR code
+        document.getElementById('form-section').style.display = 'none';
+        document.getElementById('login-link').style.display = 'none';
+        document.getElementById('qr-image').src = data.qrCode;
+        document.getElementById('qr-section').style.display = 'block';
+        afficherMessage(data.message, 'success');
+      }
+    } catch (e) {
+      afficherMessage('Erreur réseau. Réessayez.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Créer mon compte';
+    }
+  }
+
+  document.addEventListener('keydown', (e) => { if (e.key === 'Enter') inscrire(); });
+</script>
+
+</body>
+</html>
