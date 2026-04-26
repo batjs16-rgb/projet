@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Démo Sécurité — 2FA vs Sans 2FA</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      min-height: 100vh;
+      color: white;
+    }
+
+    /* ---- Header ---- */
+    header {
+      text-align: center;
+      padding: 2.5rem 1rem 1.5rem;
+    }
+
+    header h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    header p { color: #94a3b8; font-size: 0.95rem; }
+
+    /* ---- Bouton bascule ---- */
+    .toggle-bar {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin: 1.5rem auto;
+    }
+
+    .toggle-bar button {
+      padding: 0.6rem 1.6rem;
+      border-radius: 999px;
+      border: 2px solid transparent;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #btn-side-by-side {
+      background: #4f46e5;
+      color: white;
+    }
+
+    #btn-side-by-side:hover { background: #4338ca; }
+
+    #btn-switch {
+      background: transparent;
+      color: #94a3b8;
+      border-color: #334155;
+    }
+
+    #btn-switch:hover { border-color: #4f46e5; color: white; }
+
+    /* ---- Layout côte à côte ---- */
+    .demo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 1.5rem 3rem;
+    }
+
+    /* ---- Layout bascule (une seule carte visible) ---- */
+    .demo-single {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 0 1.5rem 3rem;
+    }
+
+    /* ---- Carte formulaire ---- */
+    .card {
+      background: #1e1e2e;
+      border-radius: 14px;
+      padding: 2rem;
+      border: 2px solid transparent;
+      transition: border-color 0.3s;
+      position: relative;
+    }
+
+    .card.insecure { border-color: #ef4444; }
+    .card.secure   { border-color: #22c55e; }
+
+    /* Badge en haut de carte */
+    .card-badge {
+      display: inline-block;
+      padding: 0.3rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 1.2rem;
+    }
+
+    .badge-danger { background: #450a0a; color: #f87171; }
+    .badge-safe   { background: #052e16; color: #4ade80; }
+
+    .card h2 { font-size: 1.2rem; margin-bottom: 0.3rem; }
+    .card .desc { font-size: 0.82rem; color: #64748b; margin-bottom: 1.5rem; }
+
+    label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.35rem; font-weight: 600; }
+
+    input {
+      width: 100%;
+      padding: 0.7rem 1rem;
+      background: #0f0f1a;
+      border: 1.5px solid #334155;
+      border-radius: 8px;
+      color: white;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    input:focus { outline: none; border-color: #4f46e5; }
+
+    /* Champ 2FA mis en évidence */
+    .field-2fa input { border-color: #22c55e; background: #052e16; }
+    .field-2fa label { color: #4ade80; }
+
+    .field-2fa-highlight {
+      border: 2px dashed #22c55e;
+      border-radius: 10px;
+      padding: 0.8rem;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .field-2fa-highlight::before {
+      content: '🛡️ Ce champ bloque le hacker';
+      position: absolute;
+      top: -11px;
+      left: 12px;
+      background: #052e16;
+      color: #4ade80;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0 6px;
+    }
+
+    button.btn-submit {
+      width: 100%;
+      padding: 0.8rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 0.3rem;
+    }
+
+    .btn-hack {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-hack:hover { background: #dc2626; }
+
+    .btn-secure {
+      background: #22c55e;
+      color: #052e16;
+    }
+
+    .btn-secure:hover { background: #16a34a; color: white; }
+
+    /* ---- Résultat simulé ---- */
+    .result {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-align: center;
+      display: none;
+    }
+
+    .result.hacked  { background: #450a0a; color: #f87171; }
+    .result.blocked { background: #052e16; color: #4ade80; }
+
+    /* ---- Flèche centrale (mode côte à côte) ---- */
+    .vs-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: #475569;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .demo-grid-wrapper { position: relative; }
+
+    /* ---- Bouton retour ---- */
+    .back-link {
+      text-align: center;
+      margin-top: 1rem;
+      padding-bottom: 2rem;
+    }
+
+    .back-link a {
+      color: #4f46e5;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .back-link a:hover { text-decoration: underline; }
+
+    /* ---- Mode bascule : indicateur ---- */
+    .switch-indicator {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+
+    .switch-indicator span {
+      font-weight: 700;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🔐 Démo Sécurité — 2FA</h1>
+  <p>Visualisez pourquoi un seul champ change tout face à un hacker</p>
+</header>
+
+<!-- Boutons de mode -->
+<div class="toggle-bar">
+  <button id="btn-side-by-side" onclick="setMode('side')">⬛⬛ Côte à côte</button>
+  <button id="btn-switch" onclick="setMode('switch')">🔄 Basculer</button>
+</div>
+
+<!-- Indicateur mode bascule -->
+<div class="switch-indicator" id="switch-indicator" style="display:none">
+  Vous voyez : <span id="current-label">Sans 2FA</span>
+  &nbsp;|&nbsp;
+  <a href="#" onclick="toggleCard(); return false;" style="color:#4f46e5; font-weight:700;">Voir l'autre →</a>
+</div>
+
+<!-- Conteneur principal -->
+<div id="main-container">
+
+  <!-- MODE CÔTE À CÔTE -->
+  <div class="demo-grid-wrapper" id="mode-side">
+    <div class="demo-grid">
+
+      <!-- Carte SANS 2FA -->
+      <div class="card insecure" id="card-insecure">
+        <span class="card-badge badge-danger">⚠️ Sans 2FA — Vulnérable</span>
+        <h2>Connexion classique</h2>
+        <p class="desc">Le hacker connaît votre mot de passe ? Il entre directement.</p>
+
+        <label>Nom d'utilisateur</label>
+        <input type="text" value="alice" readonly />
+
+        <label>Mot de passe</label>
+        <input type="password" value="motdepasse123" readonly />
+
+        <button class="btn-submit btn-hack" onclick="simulerAttaque('insecure')">
+          💀 Simuler l'attaque hacker
+        </button>
+
+        <div class="result hacked" id="result-insecure">
+          ✅ Hacker connecté ! Accès total au compte.
+        </div>
+      </div>
+
+      <!-- Carte AVEC 2FA -->
+      <div class="card secure" id="card-secure">
+        <span class="card-badge badge-safe">✅ Avec 2FA — Protégé</span>
+        <h2>Connexion sécurisée</h2>
+        <p class="desc">Même avec le mot de passe, le hacker est bloqué.</p>
+
+        <label>Nom d'utilisateur</label>
+        <input type="text" value="alice" readonly />
+
+        <label>Mot de passe</label>
+        <input type="password" value="motdepasse123" readonly />
+
+        <!-- Champ 2FA mis en évidence -->
+        <div class="field-2fa-highlight">
+          <div class="field-2fa">
+            <label>Code Google Authenticator</label>
+            <input type="text" placeholder="❓ Le hacker ne l'a pas" readonly />
+          </div>
+        </div>
+
+        <button class="btn-submit btn-secure" onclick="simulerAttaque('secure')">
+          🛡️ Simuler l'attaque hacker
+        </button>
+
+        <div class="result blocked" id="result-secure">
+          🚫 Accès refusé ! Code 2FA manquant. Hacker bloqué.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODE BASCULE -->
+  <div class="demo-single" id="mode-switch" style="display:none">
+
+    <!-- Carte SANS 2FA (bascule) -->
+    <div class="card insecure" id="switch-insecure">
+      <span class="card-badge badge-danger">⚠️ Sans 2FA — Vulnérable</span>
+      <h2>Connexion classique</h2>
+      <p class="desc">Le hacker connaît votre mot de passe ? Il entre directement.</p>
+
+      <label>Nom d'utilisateur</label>
+      <input type="text" value="alice" readonly />
+
+      <label>Mot de passe</label>
+      <input type="password" value="motdepasse123" readonly />
+
+      <button class="btn-submit btn-hack" onclick="simulerAttaque('switch-insecure')">
+        💀 Simuler l'attaque hacker
+      </button>
+
+      <div class="result hacked" id="result-switch-insecure">
+        ✅ Hacker connecté ! Accès total au compte.
+      </div>
+    </div>
+
+    <!-- Carte AVEC 2FA (bascule) -->
+    <div class="card secure" id="switch-secure" style="display:none">
+      <span class="card-badge badge-safe">✅ Avec 2FA — Protégé</span>
+      <h2>Connexion sécurisée</h2>
+      <p class="desc">Même avec le mot de passe, le hacker est bloqué.</p>
+
+      <label>Nom d'utilisateur</label>
+      <input type="text" value="alice" readonly />
+
+      <label>Mot de passe</label>
+      <input type="password" value="motdepasse123" readonly />
+
+      <div class="field-2fa-highlight">
+        <div class="field-2fa">
+          <label>Code Google Authenticator</label>
+          <input type="text" placeholder="❓ Le hacker ne l'a pas" readonly />
+        </div>
+      </div>
+
+      <button class="btn-submit btn-secure" onclick="simulerAttaque('switch-secure')">
+        🛡️ Simuler l'attaque hacker
+      </button>
+
+      <div class="result blocked" id="result-switch-secure">
+        🚫 Accès refusé ! Code 2FA manquant. Hacker bloqué.
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="back-link">
+  <a href="/">← Aller à la vraie page de connexion</a>
+</div>
+
+<script>
+  let modeActuel = 'side';       // 'side' ou 'switch'
+  let switchVisible = 'insecure'; // carte visible en mode bascule
+
+  // Change le mode d'affichage
+  function setMode(mode) {
+    modeActuel = mode;
+
+    document.getElementById('mode-side').style.display   = mode === 'side'   ? 'block' : 'none';
+    document.getElementById('mode-switch').style.display = mode === 'switch' ? 'block' : 'none';
+    document.getElementById('switch-indicator').style.display = mode === 'switch' ? 'block' : 'none';
+
+    // Style des boutons actifs
+    document.getElementById('btn-side-by-side').style.background = mode === 'side' ? '#4f46e5' : 'transparent';
+    document.getElementById('btn-side-by-side').style.color = mode === 'side' ? 'white' : '#94a3b8';
+    document.getElementById('btn-switch').style.background = mode === 'switch' ? '#4f46e5' : 'transparent';
+    document.getElementById('btn-switch').style.color = mode === 'switch' ? 'white' : '#94a3b8';
+  }
+
+  // Bascule entre les deux cartes en mode switch
+  function toggleCard() {
+    if (switchVisible === 'insecure') {
+      document.getElementById('switch-insecure').style.display = 'none';
+      document.getElementById('switch-secure').style.display   = 'block';
+      document.getElementById('current-label').textContent = 'Avec 2FA';
+      switchVisible = 'secure';
+    } else {
+      document.getElementById('switch-secure').style.display   = 'none';
+      document.getElementById('switch-insecure').style.display = 'block';
+      document.getElementById('current-label').textContent = 'Sans 2FA';
+      switchVisible = 'insecure';
+    }
+  }
+
+  // Simule visuellement une attaque hacker
+  function simulerAttaque(type) {
+    const resultEl = document.getElementById(`result-${type}`);
+
+    // Réinitialiser tous les résultats visibles
+    document.querySelectorAll('.result').forEach(el => el.style.display = 'none');
+
+    // Afficher le résultat avec un délai pour l'effet dramatique
+    setTimeout(() => {
+      resultEl.style.display = 'block';
+    }, 600);
+  }
+</script>
+
+</body>
+</html>
