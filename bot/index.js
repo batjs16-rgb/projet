@@ -18,70 +18,88 @@ const ownerID = '100076386702229';
 
 console.log('[INFO] Connexion en cours...');
 
-// Toutes les options doivent être passées au login pour que le listener MQTT
-// s'abonne correctement aux topics de messages et d'événements.
 login({ appState }, {
     listenEvents: true,
     selfListen: false,
-    updatePresence: true,
-    autoMarkRead: true,
+    selfListenEvent: true,
+    updatePresence: false,
+    autoMarkRead: false,
+    autoReconnect: true,
     online: true,
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 }, (err, api) => {
     if (err) {
-        console.error('[ERROR] Connexion échouée:', err);
+        console.error('[ERROR] Connexion échouée:', JSON.stringify(err, null, 2));
         return;
     }
 
-    console.log('[INFO] ✅ Connecté !');
+    console.log('[INFO] Connecté !');
     const botID = api.getCurrentUserID();
     console.log('[INFO] Bot ID:', botID);
 
+    api.setOptions({
+        listenEvents: true,
+        selfListen: false,
+        selfListenEvent: true,
+        updatePresence: false,
+        autoMarkRead: false,
+        autoReconnect: true,
+        online: true
+    });
+
     console.log('[INFO] Lancement de l\'écoute MQTT...');
+    console.log('[INFO] IMPORTANT: Le bot ne fonctionne que dans les GROUPES.');
+    console.log('[INFO] Les messages privés (1-on-1) sont chiffrés E2EE par Messenger et ne sont pas supportés par FCA.');
 
-    // Fonction d'écoute avec reconnexion automatique
-    function startListening() {
-        api.listenMqtt((err, event) => {
-            if (err) {
-                console.error('[ERROR] Erreur d\'écoute:', err);
-                console.log('[INFO] Tentative de reconnexion dans 5 secondes...');
-                setTimeout(startListening, 5000);
-                return;
+    api.listenMqtt((listenErr, event) => {
+        if (listenErr) {
+            console.error('[ERROR] Erreur listener:', JSON.stringify(listenErr, null, 2));
+            return;
+        }
+
+        if (event.type !== 'presence') {
+            console.log(`[EVENT] Type: ${event.type} | De: ${event.senderID || 'N/A'} | Thread: ${event.threadID || 'N/A'}`);
+        }
+
+        if (event.type === 'message' || event.type === 'message_reply') {
+            const sender = event.senderID;
+            const body = (event.body || '').trim();
+
+            console.log(`[MSG] De: ${sender} | Contenu: "${body}"`);
+
+            if (sender === botID) return;
+
+            if (!body.startsWith(prefix)) return;
+
+            const args = body.slice(prefix.length).trim().split(/\s+/);
+            const cmd = args[0].toLowerCase();
+
+            console.log(`[CMD] "${cmd}" par ${sender}`);
+
+            if (cmd === 'ping') {
+                api.sendMessage('🏓 Pong !', event.threadID, (sendErr) => {
+                    if (sendErr) console.error('[ERROR] Envoi échoué:', sendErr);
+                    else console.log('[OK] Pong envoyé !');
+                });
+            } else if (cmd === 'menu') {
+                api.sendMessage(
+                    `╭──⟪ ᴊᴏsɪʜᴀᴄᴋ ⟫──╮\n├ ᴘʀéғɪxᴇ: ${prefix}\n╰─────────────╯\n\nCommandes: ping, menu, uid`,
+                    event.threadID,
+                    (sendErr) => {
+                        if (sendErr) console.error('[ERROR] Envoi échoué:', sendErr);
+                        else console.log('[OK] Menu envoyé !');
+                    }
+                );
+            } else if (cmd === 'uid') {
+                api.sendMessage(`🆔 ID: ${sender}`, event.threadID, (sendErr) => {
+                    if (sendErr) console.error('[ERROR] Envoi échoué:', sendErr);
+                    else console.log('[OK] UID envoyé !');
+                });
+            } else {
+                api.sendMessage(`❌ Inconnu: ${prefix}${cmd}`, event.threadID, (sendErr) => {
+                    if (sendErr) console.error('[ERROR] Envoi échoué:', sendErr);
+                });
             }
-
-            // LOG DE TOUT ÉVÉNEMENT (Sauf présence)
-            if (event.type !== 'presence') {
-                console.log(`\n[EVENT] Type: ${event.type} | De: ${event.senderID} | Thread: ${event.threadID}`);
-            }
-
-            if (event.type === 'message' || event.type === 'message_reply') {
-                const sender = event.senderID;
-                const body = (event.body || '').trim();
-
-                console.log(`[MSG] Contenu: "${body}"`);
-
-                // Ignorer les messages du bot lui-même
-                if (sender === botID) return;
-
-                if (!body.startsWith(prefix)) return;
-
-                const args = body.slice(prefix.length).trim().split(/\s+/);
-                const cmd = args[0].toLowerCase();
-
-                console.log(`[CMD] "${cmd}" par ${sender}`);
-
-                if (cmd === 'ping') {
-                    api.sendMessage('🏓 Pong !', event.threadID);
-                } else if (cmd === 'menu') {
-                    api.sendMessage(`╭──⟪ ᴊᴏsɪʜᴀᴄᴋ ⟫──╮\n├ ᴘʀéғɪxᴇ: ${prefix}\n╰─────────────╯\n\nCommandes: ping, menu, uid`, event.threadID);
-                } else if (cmd === 'uid') {
-                    api.sendMessage(`🆔 ID: ${sender}`, event.threadID);
-                } else {
-                    api.sendMessage(`❌ Inconnu: ${prefix}${cmd}`, event.threadID);
-                }
-            }
-        });
-    }
-
-    startListening();
+        }
+    });
 });
