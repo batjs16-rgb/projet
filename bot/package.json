@@ -1,0 +1,13 @@
+{
+  "name": "josi-fb-bot",
+  "version": "1.0.0",
+  "description": "Facebook Messenger Bot by JosiHack",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@dongdev/fca-unofficial": "latest",
+    "npmlog": "^7.0.1"
+  }
+}
