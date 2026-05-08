@@ -1,16 +1,18 @@
-console.log('[START] Démarrage du script...');
+console.log('[START] Starting JosiHack Bot v7.0...');
 
 const login = require('@dongdev/fca-unofficial');
 const fs = require('fs');
 const os = require('os');
+const { loadCommands } = require('./commands/loader');
+const { getUser, setUser } = require('./utils/storage');
 
-console.log('[INFO] Chargement de appstate.json...');
+console.log('[INFO] Loading appstate.json...');
 let appState;
 try {
     appState = JSON.parse(fs.readFileSync('./appstate.json', 'utf8'));
-    console.log('[INFO] appstate.json chargé.');
+    console.log('[INFO] appstate.json loaded.');
 } catch (e) {
-    console.error('[ERROR] Erreur appstate:', e.message);
+    console.error('[ERROR] appstate error:', e.message);
     process.exit(1);
 }
 
@@ -18,12 +20,60 @@ const prefix = '?';
 const ownerID = '100076386702229';
 const botStartTime = Date.now();
 
+const { commands, aliases } = loadCommands();
+
 function getUptime() {
     const s = Math.floor((Date.now() - botStartTime) / 1000);
-    return `${Math.floor(s / 3600)}ʜ ${Math.floor((s % 3600) / 60)}ᴍ ${s % 60}s`;
+    return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m ${s % 60}s`;
 }
 
-console.log('[INFO] Connexion en cours...');
+function buildMenu(arg) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const date = now.toLocaleDateString('en-US');
+    const time = now.toLocaleTimeString('en-US');
+
+    const categories = {};
+    for (const [, cmd] of Object.entries(commands)) {
+        if (!categories[cmd.category]) categories[cmd.category] = [];
+        if (!categories[cmd.category].includes(cmd.name)) categories[cmd.category].push(cmd.name);
+    }
+
+    const catList = Object.keys(categories);
+    const catNum = parseInt(arg);
+
+    if (catNum >= 1 && catNum <= catList.length) {
+        const catName = catList[catNum - 1];
+        const cmds = categories[catName];
+        let msg = `╭──⟪ ${catName.toUpperCase()} ⟫──╮\n`;
+        cmds.forEach(c => { msg += `├ ✿ ${prefix}${c}\n`; });
+        msg += `╰────────────────────╯\n\n> (c) ${year} JosiHack Bot`;
+        return msg;
+    }
+
+    let msg =
+        `╭──⟪ ᴊᴏsɪʜᴀᴄᴋ ʙᴏᴛ ⟫──╮\n` +
+        `├ ߷ ᴘʀᴇꜰɪx     : ${prefix}\n` +
+        `├ ߷ ᴏᴡɴᴇʀ      : ᴊᴏsɪ-ʜᴀᴄᴋ\n` +
+        `├ ߷ ᴜᴘᴛɪᴍᴇ     : ${getUptime()}\n` +
+        `├ ߷ ᴅᴀᴛᴇ       : ${date}\n` +
+        `├ ߷ ᴛɪᴍᴇ       : ${time}\n` +
+        `├ ߷ ᴠᴇʀsɪᴏɴ    : 7.0.0\n` +
+        `├ ߷ ᴄᴏᴍᴍᴀɴᴅs   : ${Object.keys(commands).length}\n` +
+        `╰──────────────────╯\n\n` +
+        `╭───⟪ ᴄᴀᴛᴇɢᴏʀɪᴇs ⟫───╮\n`;
+
+    catList.forEach((cat, i) => {
+        msg += `├ ߷ ${i + 1} • ${cat} (${categories[cat].length})\n`;
+    });
+
+    msg += `╰───────────────────╯\n\n`;
+    msg += `💡 *${prefix}menu <number>* to see commands\n\n`;
+    msg += `> (c) ${year} JosiHack Bot`;
+    return msg;
+}
+
+console.log('[INFO] Connecting...');
 
 login({ appState }, {
     listenEvents: true,
@@ -36,20 +86,21 @@ login({ appState }, {
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 }, (err, api) => {
     if (err) {
-        console.error('[ERROR] Connexion échouée:', JSON.stringify(err, null, 2));
+        console.error('[ERROR] Login failed:', JSON.stringify(err, null, 2));
         return;
     }
 
     const botID = api.getCurrentUserID();
 
-    const welcomeMsg =
-        `╭───〔 🤖 *JOSIHACK BOT* 〕───⬣\n` +
-        `│ ߷ *Etat*       ➜ Connecté ✅\n` +
-        `│ ߷ *Mode*       ➜ Messenger\n` +
-        `│ ߷ *Préfixe*    ➜ ${prefix}\n` +
-        `│ ߷ *Bot ID*     ➜ ${botID}\n` +
-        `╰──────────────⬣`;
-    console.log(welcomeMsg);
+    console.log(
+        `╭───〔 🤖 JOSIHACK BOT v7.0 〕───⬣\n` +
+        `│ Status  : Online\n` +
+        `│ Mode    : Messenger (Groups only)\n` +
+        `│ Prefix  : ${prefix}\n` +
+        `│ Bot ID  : ${botID}\n` +
+        `│ Commands: ${Object.keys(commands).length}\n` +
+        `╰──────────────⬣`
+    );
 
     api.setOptions({
         listenEvents: true,
@@ -61,85 +112,30 @@ login({ appState }, {
         online: true
     });
 
-    console.log('[INFO] Lancement de l\'écoute MQTT...');
-    console.log('[INFO] IMPORTANT: Le bot ne fonctionne que dans les GROUPES.');
-    console.log('[INFO] Les messages privés (1-on-1) sont chiffrés E2EE par Messenger et ne sont pas supportés par FCA.');
-
-    const categories = {
-        '1': { name: 'sʏsᴛèᴍᴇ', cmds: [
-            `├ ߷ ${prefix}ping  ➜ ʟᴀᴛᴇɴᴄᴇ ʙᴏᴛ`,
-            `├ ߷ ${prefix}host  ➜ ɪɴғᴏs sᴇʀᴠᴇᴜʀ`,
-            `├ ߷ ${prefix}uid   ➜ ᴛᴏɴ ɪᴅ ғᴀᴄᴇʙᴏᴏᴋ`,
-        ]},
-        '2': { name: 'ɢʀᴏᴜᴘᴇ', cmds: [
-            `├ ߷ ${prefix}tagall ➜ ᴍᴇɴᴛɪᴏɴɴᴇʀ ᴛᴏᴜs`,
-        ]},
-        '3': { name: 'ᴜᴛɪʟɪᴛᴀɪʀᴇs', cmds: [
-            `├ ߷ ${prefix}info  ➜ ɪɴғᴏs ᴅᴜ ʙᴏᴛ`,
-        ]},
-    };
-
-    function buildMenu(arg) {
-        const now = new Date();
-        const year = now.getFullYear();
-        const date = now.toLocaleDateString('fr-FR');
-        const heure = now.toLocaleTimeString('fr-FR');
-
-        if (arg && categories[arg]) {
-            const cat = categories[arg];
-            return `╭──⟪ ${cat.name} ⟫──╮\n${cat.cmds.join('\n')}\n╰────────────────────╯\n\n> ©️ ${year} ᴊᴏsɪʜᴀᴄᴋ ʙᴏᴛ`;
-        }
-
-        return (
-            `╭──⟪ ᴊᴏsɪʜᴀᴄᴋ ʙᴏᴛ ⟫──╮\n` +
-            `├ ߷ ᴘʀéғɪxᴇ    : ${prefix}\n` +
-            `├ ߷ ᴏᴡɴᴇʀ      : ᴊᴏsɪ-ʜᴀᴄᴋ\n` +
-            `├ ߷ ᴜᴘᴛɪᴍᴇ     : ${getUptime()}\n` +
-            `├ ߷ ᴅᴀᴛᴇ       : ${date}\n` +
-            `├ ߷ ʜᴇᴜʀᴇ      : ${heure}\n` +
-            `├ ߷ ᴠᴇʀsɪᴏɴ    : 2.0.0\n` +
-            `╰──────────────────╯\n\n` +
-            `╭───⟪ ᴄᴀᴛéɢᴏʀɪᴇs ⟫───╮\n` +
-            `├ ߷ 1 • sʏsᴛèᴍᴇ\n` +
-            `├ ߷ 2 • ɢʀᴏᴜᴘᴇ\n` +
-            `├ ߷ 3 • ᴜᴛɪʟɪᴛᴀɪʀᴇs\n` +
-            `╰───────────────────╯\n\n` +
-            `💡 *${prefix}menu <numéro>* ᴘᴏᴜʀ ᴠᴏɪʀ ʟᴇs ᴄᴏᴍᴍᴀɴᴅᴇs\n\n` +
-            `> ©️ ${year} ᴊᴏsɪʜᴀᴄᴋ ʙᴏᴛ`
-        );
-    }
-
-    function buildHostInfo() {
-        const platform = os.platform();
-        const arch = os.arch();
-        const cpus = os.cpus();
-        const cpuModel = cpus[0]?.model || 'Unknown';
-        const cpuCores = cpus.length;
-        const totalMem = (os.totalmem() / (1024 ** 3)).toFixed(2);
-        const freeMem = (os.freemem() / (1024 ** 3)).toFixed(2);
-        const nodeVersion = process.version;
-        const now = new Date().toLocaleString('fr-FR');
-
-        return (
-            `╭───〔 🖥️ JOSIHACK HOST 〕───⬣\n` +
-            `│ 🌐 *Platform*      : ${platform} (${arch})\n` +
-            `│ ⚙️ *CPU*           : ${cpuModel} (${cpuCores} cores)\n` +
-            `│ 💾 *Memory*        : ${freeMem} GB free / ${totalMem} GB total\n` +
-            `│ 🔧 *Node.js*       : ${nodeVersion}\n` +
-            `│ ⏳ *Uptime*        : ${getUptime()}\n` +
-            `│ 🕒 *Heure*         : ${now}\n` +
-            `╰────────────────────────────⬣`
-        );
-    }
+    console.log('[INFO] Starting MQTT listener...');
+    console.log('[INFO] IMPORTANT: Bot only works in GROUPS (Messenger E2EE blocks private messages).');
 
     api.listenMqtt((listenErr, event) => {
         if (listenErr) {
-            console.error('[ERROR] Erreur listener:', JSON.stringify(listenErr, null, 2));
+            console.error('[ERROR] Listener error:', JSON.stringify(listenErr, null, 2));
             return;
         }
 
         if (event.type !== 'presence') {
-            console.log(`[EVENT] Type: ${event.type} | De: ${event.senderID || 'N/A'} | Thread: ${event.threadID || 'N/A'}`);
+            console.log(`[EVENT] Type: ${event.type} | From: ${event.senderID || 'N/A'} | Thread: ${event.threadID || 'N/A'}`);
+        }
+
+        if ((event.type === 'message' || event.type === 'message_reply') && event.senderID) {
+            let act = getUser('activity', event.senderID) || { messages: 0, commands: 0, firstSeen: Date.now() };
+            act.messages = (act.messages || 0) + 1;
+            setUser('activity', event.senderID, act);
+
+            let r = getUser('rank', event.senderID) || { xp: 0, level: 1, messages: 0 };
+            r.messages = (r.messages || 0) + 1;
+            r.xp = (r.xp || 0) + 1;
+            const xpNeeded = r.level * 100;
+            while (r.xp >= xpNeeded) { r.xp -= xpNeeded; r.level++; }
+            setUser('rank', event.senderID, r);
         }
 
         if (event.type === 'message' || event.type === 'message_reply') {
@@ -147,97 +143,66 @@ login({ appState }, {
             const body = (event.body || '').trim();
 
             if (sender === botID) return;
+
+            const tid = event.threadID;
+            const groupData = getUser('groups', tid);
+            if (groupData && groupData.badwordsEnabled && groupData.badwords) {
+                const lower = body.toLowerCase();
+                const found = groupData.badwords.find(w => lower.includes(w));
+                if (found) {
+                    api.unsendMessage(event.messageID);
+                    api.sendMessage(`⚠️ Message removed — contains banned word.`, tid);
+                    return;
+                }
+            }
+
+            if (event.mentions) {
+                for (const [id] of Object.entries(event.mentions)) {
+                    const busyData = getUser('busy', id);
+                    if (busyData) {
+                        api.sendMessage(`⏳ This user is busy: "${busyData.reason}"`, tid);
+                    }
+                }
+            }
+
+            const bans = getUser('system', 'bans');
+            if (bans && bans.list && bans.list.includes(sender)) return;
+
             if (!body.startsWith(prefix)) return;
 
             const fullArgs = body.slice(prefix.length).trim().split(/\s+/);
-            const cmd = fullArgs[0].toLowerCase();
-            const arg = fullArgs[1] || '';
+            const cmdName = fullArgs[0].toLowerCase();
 
-            console.log(`[CMD] "${cmd}" par ${sender}`);
+            console.log(`[CMD] "${cmdName}" by ${sender}`);
 
-            if (cmd === 'ping') {
-                const start = Date.now();
-                api.sendMessage('🏓 Pinging...', event.threadID, (sendErr, msgInfo) => {
-                    if (sendErr) return console.error('[ERROR] Envoi échoué:', sendErr);
-                    const latency = Date.now() - start;
-                    api.sendMessage(`🏓 *Pong !*\n\n📡 Latence : *${latency}ms*`, event.threadID, (e) => {
-                        if (e) console.error('[ERROR] Envoi échoué:', e);
-                        else console.log(`[OK] Pong envoyé ! (${latency}ms)`);
-                    });
+            if (cmdName === 'menu') {
+                return api.sendMessage(buildMenu(fullArgs[1] || ''), tid, (e) => {
+                    if (e) console.error('[ERROR] Send failed:', e);
                 });
+            }
 
-            } else if (cmd === 'menu') {
-                api.sendMessage(buildMenu(arg), event.threadID, (sendErr) => {
-                    if (sendErr) console.error('[ERROR] Envoi échoué:', sendErr);
-                    else console.log('[OK] Menu envoyé !');
-                });
+            const resolvedName = aliases[cmdName] || cmdName;
+            const cmd = commands[resolvedName];
 
-            } else if (cmd === 'uid') {
-                const targetID = event.type === 'message_reply' && event.messageReply
-                    ? event.messageReply.senderID
-                    : sender;
-                api.sendMessage(`🆔 *ID* : ${targetID}`, event.threadID, (sendErr) => {
-                    if (sendErr) console.error('[ERROR] Envoi échoué:', sendErr);
-                    else console.log('[OK] UID envoyé !');
-                });
+            if (!cmd) {
+                return api.sendMessage(
+                    `❌ Unknown command: ${prefix}${cmdName}\n💡 Type *${prefix}menu* to see all commands.`,
+                    tid
+                );
+            }
 
-            } else if (cmd === 'host') {
-                api.sendMessage(buildHostInfo(), event.threadID, (sendErr) => {
-                    if (sendErr) console.error('[ERROR] Envoi échoué:', sendErr);
-                    else console.log('[OK] Host info envoyé !');
+            try {
+                cmd.execute(api, event, {
+                    args: fullArgs,
+                    prefix,
+                    ownerID,
+                    botID,
+                    botStartTime,
+                    commands,
                 });
-
-            } else if (cmd === 'tagall') {
-                if (!event.isGroup) {
-                    api.sendMessage('🚫 Cette commande fonctionne uniquement dans les groupes.', event.threadID);
-                    return;
-                }
-                api.getThreadInfo(event.threadID, (infoErr, info) => {
-                    if (infoErr) {
-                        api.sendMessage('❌ Erreur lors de la récupération des infos du groupe.', event.threadID);
-                        return;
-                    }
-                    const participants = info.participantIDs || [];
-                    const userText = fullArgs.slice(1).join(' ') || 'Aucun';
-                    const tagList = participants.map(id => `│ 👤 @${id}`).join('\n');
-                    const mentions = participants.map(id => ({ tag: `@${id}`, id: id }));
-                    const tagMsg =
-                        `╭───────◇\n` +
-                        `│ 🤖 *JOSIHACK BOT - TAGALL* 🤖\n` +
-                        `╰───────◇\n\n` +
-                        `👥 *Groupe* : ${info.threadName || 'N/A'}\n` +
-                        `👨‍👩‍👧‍👦 *Membres* : ${participants.length}\n\n` +
-                        `🗒️ *Note* : ${userText}\n\n` +
-                        `╭───〔 LISTE 〕───⬣\n` +
-                        `${tagList}\n` +
-                        `╰──────────────⬣\n\n` +
-                        `> PRODUCED BY JOSIHACK BOT BOY`;
-                    api.sendMessage({ body: tagMsg, mentions: mentions }, event.threadID, (sendErr) => {
-                        if (sendErr) console.error('[ERROR] Envoi échoué:', sendErr);
-                        else console.log('[OK] Tagall envoyé !');
-                    });
-                });
-
-            } else if (cmd === 'info') {
-                const infoMsg =
-                    `╭───〔 🤖 JOSIHACK BOT 〕───⬣\n` +
-                    `│ ߷ *Etat*       ➜ Connecté ✅\n` +
-                    `│ ߷ *Mode*       ➜ Messenger\n` +
-                    `│ ߷ *Préfixe*    ➜ ${prefix}\n` +
-                    `│ ߷ *Bot ID*     ➜ ${botID}\n` +
-                    `│ ߷ *Uptime*     ➜ ${getUptime()}\n` +
-                    `│ ߷ *Version*    ➜ 2.0.0\n` +
-                    `╰──────────────⬣\n\n` +
-                    `> ©️ ${new Date().getFullYear()} ᴊᴏsɪʜᴀᴄᴋ ʙᴏᴛ`;
-                api.sendMessage(infoMsg, event.threadID, (sendErr) => {
-                    if (sendErr) console.error('[ERROR] Envoi échoué:', sendErr);
-                    else console.log('[OK] Info envoyé !');
-                });
-
-            } else {
-                api.sendMessage(`❌ Commande inconnue: ${prefix}${cmd}\n💡 Tape *${prefix}menu* pour voir les commandes.`, event.threadID, (sendErr) => {
-                    if (sendErr) console.error('[ERROR] Envoi échoué:', sendErr);
-                });
+            } catch (execErr) {
+                console.error(`[ERROR] Command "${cmdName}" error:`, execErr);
+                api.sendMessage(`❌ Error executing command: ${execErr.message}`, tid);
             }
         }
     });
