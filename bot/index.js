@@ -112,6 +112,16 @@ login({ appState }, {
         online: true
     });
 
+    const origSend = api.sendMessage.bind(api);
+    api.sendMessage = function(msg, threadID, cb) {
+        console.log(`[SEND] Sending to ${threadID} (${typeof msg === 'string' ? msg.slice(0, 50) : 'object'}...)`);
+        return origSend(msg, threadID, (err, info) => {
+            if (err) console.error('[SEND-ERROR]', JSON.stringify(err));
+            else console.log('[SEND-OK] Message sent');
+            if (cb) cb(err, info);
+        });
+    };
+
     console.log('[INFO] Starting MQTT listener...');
     console.log('[INFO] IMPORTANT: Bot only works in GROUPS (Messenger E2EE blocks private messages).');
 
